@@ -1,6 +1,7 @@
 # GTA VI Countdown
 
-A single-page countdown to the GTA VI release (Nov 19, 2026), built to sit on a TV.
+A single-page countdown to the GTA VI US/Canada release (Nov 19, 2026 at 12:00 AM Eastern),
+built to sit on a TV. The website works in any time zone.
 
 Open `index.html` in a browser (or host it with GitHub Pages).
 
@@ -14,7 +15,7 @@ Open `index.html` in a browser (or host it with GitHub Pages).
 `M` mode · `F` fullscreen · `S` show/hide seconds · `↑`/`↓` brightness.
 Settings are remembered in the browser. The page also asks the browser to keep the screen awake.
 
-URL options: `?mode=normal` or `?mode=oled`, and `?date=2026-11-19T00:00:00` to change the target.
+URL options: `?mode=normal` or `?mode=oled`, and `?date=2026-11-19T00:00:00-05:00` to change the target.
 
 ## Watch on Apple TV with VLC
 
@@ -34,7 +35,9 @@ dimmed text that slowly drifts and "breathes" to prevent burn-in).
    If it's 7:42 PM, scrub to **19:42**. Get as close as you can, then it stays in sync.
    Once it starts it plays right through to release and shows "It's here." for 3 hours after.
 
-The release is local midnight on Nov 19, matching the website, so this works in any time zone.
+**The video is made for US Central time** (release = 11:00 PM CT on Nov 18 = 12:00 AM ET on Nov 19),
+because the playback position has to match your clock. For another time zone, re-render with
+`--release` set to the release time on that clock.
 
 To re-render (e.g. if the date changes, or for the colorful style), see `video/make_video.py`
 (needs ffmpeg and the Inter font).

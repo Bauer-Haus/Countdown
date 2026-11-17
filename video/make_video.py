@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Render the GTA VI countdown as a video stream for VLC (e.g. VLC on Apple TV).
 
-The video starts at local midnight of --start, so the playback position equals
-the time of day: at 3:15 PM, scrub to 15:15 and the countdown is correct.
-Everything is relative to local midnight on release day (same as the website),
-so the same files work in any time zone.
+The video starts at midnight of --start on the viewer's clock, so the playback
+position equals the time of day: at 3:15 PM, scrub to 15:15 and the countdown
+is correct. Because of that, the video is made for ONE time zone: --release is
+the release time on that clock (default 11 PM US Central = 12 AM Eastern).
 
 Output is HLS (an .m3u8 playlist + 10-minute .ts segments) so it can be hosted
 on GitHub Pages (100 MB per-file limit) and seeked as one long video in VLC.
@@ -17,13 +17,15 @@ Needs: ffmpeg with libx264 + drawtext, and the Inter font.
 """
 import argparse, datetime, os, subprocess, tempfile
 
-RELEASE = datetime.datetime(2026, 11, 19)
 FONTS = "/usr/share/fonts/opentype/inter/"
 SEG = 600  # seconds per HLS segment
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--mode", choices=["oled", "normal"], default="oled")
 ap.add_argument("--start", default="2026-11-17", help="local day the video starts (midnight)")
+ap.add_argument("--release", default="2026-11-18T23:00",
+                help="release time on the VIEWER's clock (default: 12 AM ET = 11 PM Central)")
+ap.add_argument("--release-label", default="W E D N E S D A Y ,   N O V   1 8   ·   1 1 : 0 0   P M   C T")
 ap.add_argument("--tail", type=float, default=3, help="hours of 'It's here' after release")
 ap.add_argument("--height", type=int, default=720)
 ap.add_argument("--crf", default="31")
@@ -31,6 +33,7 @@ ap.add_argument("--bg", help="background image (normal mode)")
 ap.add_argument("--hours", type=float, help="override total length (for testing)")
 ap.add_argument("--out", required=True)
 a = ap.parse_args()
+RELEASE = datetime.datetime.fromisoformat(a.release)
 
 start = datetime.datetime.fromisoformat(a.start)
 S0 = int((RELEASE - start).total_seconds())          # seconds remaining at t=0
@@ -74,7 +77,7 @@ for i, (label, expr) in enumerate(fields):
     f.append(text(expr, big, 250, cx, 380, color, before, glow))
     f.append(text(" ".join(label), "Inter-Light.otf", 26, cx, 680, muted, before))
 f.append(text("It’s here.", big, 200, 960, 430, color, after, glow))
-f.append(text("T H U R S D A Y ,   N O V E M B E R   1 9 ,   2 0 2 6", "Inter-Light.otf",
+f.append(text(a.release_label.replace(":", "\\:"), "Inter-Light.otf",
               26, 960, 760, muted))
 
 if oled:
