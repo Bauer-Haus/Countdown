@@ -187,10 +187,10 @@
 
 <script>
 (() => {
-  // ---- Target: GTA VI release, November 19, 2026, midnight in the viewer's local time.
-  //      Override with ?date=2026-11-19T00:00:00 (ISO) if the date ever changes.
+  // ---- Target: GTA VI US/Canada release, Nov 19, 2026 at 12:00 AM Eastern (05:00 UTC).
+  //      Override with ?date=<ISO time with offset>, e.g. ?date=2026-11-19T00:00:00-03:00
   const params = new URLSearchParams(location.search);
-  const target = new Date(params.get('date') || '2026-11-19T00:00:00');
+  const target = new Date(params.get('date') || '2026-11-19T00:00:00-05:00');
 
   const $ = id => document.getElementById(id);
   const body = document.body;
@@ -220,8 +220,8 @@
   }
 
   // ---- Countdown
-  $('date').textContent = target.toLocaleDateString(undefined,
-    { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+  $('date').textContent = target.toLocaleString(undefined,
+    { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).toUpperCase();
   const pad = n => String(n).padStart(2, '0');
   function tick() {
     let diff = Math.max(0, target - Date.now());
