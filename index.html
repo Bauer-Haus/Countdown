@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>GTA VI Countdown</title>
+<meta name="description" content="Countdown to the release of Grand Theft Auto VI, built for TVs with an OLED burn-in safe mode.">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #b8b8b8;          /* not full white: less stress on OLED subpixels */
+    --muted: #5a5a5a;
+    --panel-bg: #0a0a0a;
+    --panel-border: #222;
+    --accent: #b8b8b8;
+    --brightness: 0.75;
+  }
+  body.normal {
+    --fg: #ffffff;
+    --muted: rgba(255,255,255,.75);
+    --panel-bg: rgba(20, 8, 40, .85);
+    --panel-border: rgba(255,255,255,.2);
+    --accent: #ff4fa3;
+    --brightness: 1;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.idle, body.idle * { cursor: none !important; }
+
+  /* ---------- Normal (non-OLED) background ---------- */
+  #sky {
+    position: fixed; inset: 0; z-index: 0;
+    display: none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 78%, rgba(255,190,90,.55), transparent 70%),
+      linear-gradient(180deg, #120531 0%, #3b0c63 30%, #a3136f 58%, #ff5e62 78%, #ffb36b 100%);
+  }
+  #sky::before { /* sun */
+    content: ""; position: absolute; left: 50%; bottom: 14%;
+    width: min(46vw, 70vh); aspect-ratio: 1; transform: translateX(-50%);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffe08a 0%, #ff8a5c 55%, #ff3d7f 100%);
+    -webkit-mask: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 20px);
+            mask: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 20px);
+    opacity: .85;
+  }
+  #sky::after { /* water / horizon */
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20%;
+    background: linear-gradient(180deg, #2a0b4a, #0b0220);
+    box-shadow: 0 -2px 0 rgba(255,140,190,.5);
+  }
+  .palm {
+    position: absolute; bottom: 18%; width: 22vh; height: 52vh; fill: #12031f;
+  }
+  .palm.l { left: 2vw; }
+  .palm.r { right: 2vw; transform: scaleX(-1); }
+  body.normal #sky { display: block; }
+  @media (max-aspect-ratio: 1/1) { .palm { width: 14vw; height: 34vw; } }
+
+  /* ---------- Stage + drifting content ---------- */
+  #stage {
+    position: fixed; inset: 0; z-index: 1;
+    display: grid; place-items: center;
+  }
+  #content {
+    text-align: center;
+    opacity: var(--brightness);
+    transition: transform var(--drift-time, 30s) linear, opacity 2s ease;
+    will-change: transform;
+  }
+  .title {
+    font-weight: 200;
+    letter-spacing: .5em;
+    text-indent: .5em;
+    font-size: clamp(14px, 2.4vw, 40px);
+    color: var(--muted);
+    margin-bottom: 2.5vh;
+    text-transform: uppercase;
+  }
+  body.normal .title {
+    color: #fff; font-weight: 700; letter-spacing: .35em; text-indent: .35em;
+    text-shadow: 0 0 18px rgba(255,79,163,.8);
+  }
+  .clock {
+    display: flex; justify-content: center; align-items: flex-start;
+    gap: clamp(10px, 2.5vw, 48px);
+  }
+  .unit { display: flex; flex-direction: column; align-items: center; }
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-weight: 100;
+    font-size: clamp(48px, 13vw, 260px);
+    line-height: 1;
+  }
+  body.normal .num {
+    font-weight: 300;
+    text-shadow: 0 4px 30px rgba(60,0,80,.6), 0 0 2px rgba(255,255,255,.4);
+  }
+  .lbl {
+    margin-top: 1.2vh;
+    font-size: clamp(10px, 1.3vw, 22px);
+    letter-spacing: .35em; text-indent: .35em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .sep {
+    font-weight: 100; color: var(--muted);
+    font-size: clamp(32px, 9vw, 180px); line-height: 1.15;
+  }
+  body.oled .sep { display: none; }
+  .date {
+    margin-top: 3vh;
+    font-size: clamp(11px, 1.4vw, 24px);
+    letter-spacing: .25em; text-indent: .25em;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .hide-seconds .u-sec, .hide-seconds .sep-sec { display: none; }
+  #done { display: none; font-weight: 200; font-size: clamp(40px, 10vw, 200px); }
+  body.released .clock { display: none; }
+  body.released #done { display: block; }
+
+  /* ---------- Controls ---------- */
+  #controls {
+    position: fixed; z-index: 5; right: 16px; bottom: 16px; left: 16px;
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center;
+    transition: opacity .6s ease;
+  }
+  body.idle #controls { opacity: 0; pointer-events: none; }
+  #controls button, #controls label {
+    font: inherit; font-size: 15px;
+    color: var(--fg); background: var(--panel-bg);
+    border: 1px solid var(--panel-border); border-radius: 999px;
+    padding: 10px 16px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  #controls button:focus-visible, #controls input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  #controls button[aria-pressed="true"] { border-color: var(--accent); }
+  #controls input[type=range] { width: 110px; accent-color: var(--accent); }
+  .hint { font-size: 13px; color: var(--muted); margin-right: auto; }
+  @media (max-width: 640px) { .hint { display: none; } }
+</style>
+</head>
+<body class="oled">
+
+<div id="sky" aria-hidden="true">
+  <svg class="palm l" viewBox="0 0 100 240"><path d="M48 240 C52 180 56 120 50 70 L54 70 C60 120 58 180 56 240Z M52 70 C30 40 10 45 0 60 C20 48 35 52 50 72Z M52 70 C70 35 92 38 100 52 C82 44 66 52 54 72Z M52 70 C40 30 25 15 8 18 C28 22 42 40 50 70Z M52 70 C62 28 80 12 96 16 C76 22 62 42 54 70Z M52 70 C50 40 55 20 60 8 C58 30 56 50 54 70Z"/></svg>
+  <svg class="palm r" viewBox="0 0 100 240"><path d="M48 240 C52 180 56 120 50 70 L54 70 C60 120 58 180 56 240Z M52 70 C30 40 10 45 0 60 C20 48 35 52 50 72Z M52 70 C70 35 92 38 100 52 C82 44 66 52 54 72Z M52 70 C40 30 25 15 8 18 C28 22 42 40 50 70Z M52 70 C62 28 80 12 96 16 C76 22 62 42 54 70Z M52 70 C50 40 55 20 60 8 C58 30 56 50 54 70Z"/></svg>
+</div>
+
+<main id="stage">
+  <div id="content">
+    <div class="title">Grand Theft Auto VI</div>
+    <div class="clock" role="timer" aria-live="off">
+      <div class="unit"><span class="num" id="d">--</span><span class="lbl">Days</span></div>
+      <span class="sep">:</span>
+      <div class="unit"><span class="num" id="h">--</span><span class="lbl">Hours</span></div>
+      <span class="sep">:</span>
+      <div class="unit"><span class="num" id="m">--</span><span class="lbl">Minutes</span></div>
+      <span class="sep sep-sec">:</span>
+      <div class="unit u-sec"><span class="num" id="s">--</span><span class="lbl">Seconds</span></div>
+    </div>
+    <div id="done">It's here.</div>
+    <div class="date" id="date"></div>
+  </div>
+</main>
+
+<div id="controls">
+  <span class="hint">M: mode · F: fullscreen · S: seconds · ↑↓: brightness</span>
+  <button id="modeBtn" type="button">Mode: OLED</button>
+  <button id="secBtn" type="button" aria-pressed="true">Seconds</button>
+  <label title="Brightness">☀ <input id="bright" type="range" min="20" max="100" step="5" aria-label="Brightness"></label>
+  <button id="fsBtn" type="button">Fullscreen</button>
+</div>
+
+<script>
+(() => {
+  // ---- Target: GTA VI release, November 19, 2026, midnight in the viewer's local time.
+  //      Override with ?date=2026-11-19T00:00:00 (ISO) if the date ever changes.
+  const params = new URLSearchParams(location.search);
+  const target = new Date(params.get('date') || '2026-11-19T00:00:00');
+
+  const $ = id => document.getElementById(id);
+  const body = document.body;
+  const content = $('content');
+
+  // ---- Settings (persisted per browser; safe if storage is blocked)
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('gta6:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('gta6:' + k, JSON.stringify(v)); } catch {} }
+  };
+  let mode = params.get('mode') || store.get('mode', 'oled');
+  let showSec = store.get('seconds', true);
+  let bright = { oled: store.get('bright-oled', 70), normal: store.get('bright-normal', 100) };
+
+  function applySettings() {
+    body.classList.toggle('oled', mode === 'oled');
+    body.classList.toggle('normal', mode !== 'oled');
+    body.classList.toggle('hide-seconds', !showSec);
+    $('modeBtn').textContent = 'Mode: ' + (mode === 'oled' ? 'OLED' : 'Normal');
+    $('secBtn').setAttribute('aria-pressed', String(showSec));
+    $('bright').value = bright[mode];
+    document.documentElement.style.setProperty('--brightness', bright[mode] / 100);
+    document.querySelector('meta[name=theme-color]').content = mode === 'oled' ? '#000000' : '#120531';
+    store.set('mode', mode); store.set('seconds', showSec);
+    store.set('bright-oled', bright.oled); store.set('bright-normal', bright.normal);
+    drift(true);
+  }
+
+  // ---- Countdown
+  $('date').textContent = target.toLocaleDateString(undefined,
+    { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+  const pad = n => String(n).padStart(2, '0');
+  function tick() {
+    let diff = Math.max(0, target - Date.now());
+    if (diff === 0) body.classList.add('released');
+    const s = Math.floor(diff / 1000);
+    $('d').textContent = Math.floor(s / 86400);
+    $('h').textContent = pad(Math.floor(s / 3600) % 24);
+    $('m').textContent = pad(Math.floor(s / 60) % 60);
+    $('s').textContent = pad(s % 60);
+    setTimeout(tick, 1000 - (Date.now() % 1000) + 5);
+  }
+  tick();
+
+  // ---- Burn-in protection: pixel drift
+  // The whole block glides continuously to a new random spot, so no pixel shows
+  // the same static content (labels, title) for long. Always on in OLED mode,
+  // slower and smaller in normal mode.
+  let driftTimer;
+  function drift(reset) {
+    clearTimeout(driftTimer);
+    const oled = mode === 'oled';
+    const rect = content.getBoundingClientRect();
+    const maxX = Math.max(0, (innerWidth - rect.width) / 2 - 24);
+    const maxY = Math.max(0, (innerHeight - rect.height) / 2 - 24);
+    const range = oled ? 1 : 0.15;
+    const x = (Math.random() * 2 - 1) * maxX * range;
+    const y = (Math.random() * 2 - 1) * maxY * range;
+    const secs = oled ? 45 : 90;
+    content.style.setProperty('--drift-time', reset ? '2s' : secs + 's');
+    content.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    driftTimer = setTimeout(() => drift(false), reset ? 2000 : secs * 1000);
+  }
+  addEventListener('resize', () => drift(true));
+
+  // ---- Burn-in protection: slow brightness "breathing" in OLED mode
+  // Dips brightness ~15% over a few minutes and back, varying subpixel load.
+  setInterval(() => {
+    if (mode !== 'oled') { content.style.opacity = ''; return; }
+    const phase = (Date.now() / 1000 / 300) * Math.PI * 2;   // 5-minute cycle
+    content.style.opacity = (bright.oled / 100) * (0.92 + 0.08 * Math.sin(phase));
+  }, 2000);
+
+  // ---- Hide controls + cursor when idle
+  let idleTimer;
+  function wake() {
+    body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => body.classList.add('idle'), 4000);
+  }
+  ['mousemove', 'mousedown', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake, { passive: true }));
+  wake();
+
+  // ---- Keep the screen awake (TV/browser sleep)
+  let lock;
+  async function keepAwake() {
+    try { if ('wakeLock' in navigator && document.visibilityState === 'visible') lock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+  document.addEventListener('visibilitychange', keepAwake);
+  keepAwake();
+
+  // ---- Controls
+  const toggleMode = () => { mode = mode === 'oled' ? 'normal' : 'oled'; applySettings(); };
+  const toggleSec = () => { showSec = !showSec; applySettings(); };
+  const setBright = v => { bright[mode] = Math.min(100, Math.max(20, v)); applySettings(); };
+  const toggleFs = () => {
+    const el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+    }
+  };
+  $('modeBtn').onclick = toggleMode;
+  $('secBtn').onclick = toggleSec;
+  $('fsBtn').onclick = toggleFs;
+  $('bright').oninput = e => setBright(+e.target.value);
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase();
+    if (k === 'm') toggleMode();
+    else if (k === 'f') toggleFs();
+    else if (k === 's') toggleSec();
+    else if (e.key === 'ArrowUp' && !document.activeElement?.closest('#controls')) setBright(bright[mode] + 5);
+    else if (e.key === 'ArrowDown' && !document.activeElement?.closest('#controls')) setBright(bright[mode] - 5);
+  });
+
+  applySettings();
+})();
+</script>
+</body>
+</html>
